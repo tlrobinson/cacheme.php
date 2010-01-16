@@ -21,41 +21,30 @@
      * Based on techniques described at http://www.snipe.net/2009/03/quick-and-dirty-php-caching/
      */
 
-    // guard against a recursive cycle of includes
-    if (!$cacheme_run) {
-        $cacheme_run = true;
-        
-        function cachme_echo($string) {
-            global $cacheme_debug;
-            if ($cacheme_debug)
-                echo $string;
-        }
-        
-        if (!isset($cacheme_directory))
-            $cacheme_directory = $_SERVER['DOCUMENT_ROOT'] . DIRECTORY_SEPARATOR . 'cache';
-        if (!isset($cacheme_expires))
-            $cacheme_expires = 10 * 60; // 10 minutes
-        if (!isset($cacheme_debug))
-            $cacheme_debug = true;
+    if (!isset($cacheme_directory))
+        $cacheme_directory = $_SERVER['DOCUMENT_ROOT'] . DIRECTORY_SEPARATOR . 'cache';
+    if (!isset($cacheme_expires))
+        $cacheme_expires = 10 * 60; // 10 minutes
+    if (!isset($cacheme_debug))
+        $cacheme_debug = true;
 
-        $cacheme_file = $_SERVER['SCRIPT_FILENAME'];
-        $cacheme_cache_file = $cacheme_directory . $_SERVER['SCRIPT_NAME'];
+    $cacheme_cache_file = $cacheme_directory . $_SERVER['SCRIPT_NAME'];
 
-        // check to see if a valid cached file exists
-        if (file_exists($cacheme_cache_file) && (time() - $cacheme_expires < filemtime($cacheme_cache_file))) {
-            // TODO: write the file 
-            //include($cacheme_cache_file);
-            echo file_get_contents($cacheme_cache_file);
+    // check to see if a valid cached file exists
+    if (file_exists($cacheme_cache_file) && (time() - $cacheme_expires < filemtime($cacheme_cache_file))) {
+        echo file_get_contents($cacheme_cache_file);
 
-            cachme_echo('<!-- Loaded from cache: ' . date('jS F Y H:i', filemtime($cacheme_cache_file)) . ' -->');
-            exit;
-        }
+        cachme_echo('<!-- Loaded from cache: ' . date('jS F Y H:i', filemtime($cacheme_cache_file)) . ' -->');
+        exit;
+    }
 
-        // start output buffering
-        ob_start();
+    // start output buffering
+    ob_start();
 
-        // include the original script again
-        include($cacheme_file);
+    register_shutdown_function('cacheme_complete');
+
+    function cacheme_complete() {
+        global $cacheme_cache_file;
 
         // check for and create parent directories of cache file
         $dir = dirname($cacheme_cache_file);
@@ -70,11 +59,18 @@
                 ob_end_flush();
 
                 cachme_echo('<!-- Cached at: ' . date('jS F Y H:i', time()) . ' -->');
-                exit;
+                return;
             }
         }
 
         cachme_echo('<!-- Warning: unable to cache -->');
-        exit;
     }
+
+    function cachme_echo($string) {
+        global $cacheme_debug;
+
+        if ($cacheme_debug)
+            echo $string;
+    }
+
 ?>
